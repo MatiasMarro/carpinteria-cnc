@@ -1,340 +1,155 @@
 """
-dxf_exporter.py
-===============
-Exporta piezas a archivos DXF compatibles con Vectric Aspire.
+dxf_exporter.py - V8.502 COMPATIBLE
+====================================
+Exporta DXFs que Aspire V8.502 puede leer sin problemas.
 
-Las convenciones de layers permiten que Aspire reconozca automáticamente
-qué herramienta debe usar para cada operación.
-
-Uso:
-    from dxf_exporter import exportar_pieza_dxf, exportar_proyecto
-    from furniture_estanteria import estanteria_media
-    
-    estanteria = estanteria_media()
-    piezas = estanteria.generar_piezas()
-    
-    # Exportar piezas individuales
-    exportar_proyecto(piezas, "output/estanteria_001/")
+Cambios clave:
+- Formato R2000 (AC1015) - máxima compatibilidad
+- Solo LINE y CIRCLE (sin LWPOLYLINE con XDATA)
+- Setup mínimo de headers
+- Sin metadatos extendidos
 """
 
 import os
 from pathlib import Path
-from typing import Optional
+import ezdxf
+from ezdxf import units
 
-try:
-    import ezdxf
-except ImportError:
-    raise ImportError(
-        "Se requiere ezdxf. Instala con: pip install ezdxf"
-    )
-
-from furniture_core import Pieza, Operacion, TipoOperacion
-
-
-# ============================================================================
-# CONVENCIÓN DE LAYERS PARA ASPIRE
-# ============================================================================
 
 LAYERS_ASPIRE = {
-    "CONTORNO_EXTERIOR": {
-        "color": 1,  # Rojo en Aspire
-        "herramienta": "mecha_6mm_exterior",
-        "descripcion": "Contorno exterior (última herramienta)"
-    },
-    "AGUJEROS_15MM": {
-        "color": 2,  # Amarillo en Aspire
-        "herramienta": "mecha_15mm",
-        "descripcion": "Agujeros minifix (15mm)"
-    },
-    "AGUJEROS_8MM": {
-        "color": 3,  # Verde en Aspire
-        "herramienta": "mecha_8mm",
-        "descripcion": "Agujeros tarugo (8mm)"
-    },
-    "AGUJEROS_4MM": {
-        "color": 4,  # Cian en Aspire
-        "herramienta": "mecha_4mm",
-        "descripcion": "Agujeros pequeños (4mm)"
-    },
-    "RANURAS": {
-        "color": 5,  # Magenta en Aspire
-        "herramienta": "mecha_4mm",
-        "descripcion": "Ranuras y grabados"
-    },
-    "GRABADO": {
-        "color": 6,  # Blanco en Aspire
-        "herramienta": "v_bit_grabado",
-        "descripcion": "Grabados decorativos"
-    },
+    "CONTORNO": 1,
+    "MINIFIX_15": 2,
+    "TARUGO_8": 3,
+    "MECHA_4": 4,
+    "RANURA": 5,
+    "GRABADO": 6,
 }
 
 
-def _crear_documento_dxf(titulo: str = "Pieza CNC") -> tuple:
-    """Crea un documento DXF nuevo con layers estándar Aspire"""
-    doc = ezdxf.new("R2018", setup=True)
+def _crear_documento():
+    """Crea documento DXF R2000 mínimo para Aspire V8"""
+    doc = ezdxf.new("R2000")
+    doc.units = units.MM
+    doc.header["$INSUNITS"] = 4
+    doc.header["$MEASUREMENT"] = 1
+    doc.header["$LUNITS"] = 2
+    
     msp = doc.modelspace()
     
-    # Crear layers
-    for layer_name, props in LAYERS_ASPIRE.items():
-        try:
-            doc.layers.new(name=layer_name, dxfattribs={"color": props["color"]})
-        except ezdxf.DXFValueError:
-            pass  # Layer ya existe
+    for layer_name, color in LAYERS_ASPIRE.items():
+        if layer_name not in doc.layers:
+            doc.layers.add(name=layer_name, color=color)
     
     return doc, msp
 
 
-def exportar_pieza_dxf(pieza: Pieza, path: str,
-                       agregar_metadata: bool = True) -> None:
-    """
-    Exporta una pieza individual a DXF.
-    
-    Args:
-        pieza: Objeto Pieza
-        path: Ruta del archivo (ej: "output/lateral.dxf")
-        agregar_metadata: Si True, agrega dimensiones como atributos
-    """
-    doc, msp = _crear_documento_dxf(titulo=pieza.nombre)
-    
-    # ====== CONTORNO EXTERIOR ======
-    # Rectángulo que define los límites de corte
-    puntos_contorno = [
-        (0, 0),
-        (pieza.ancho, 0),
-        (pieza.ancho, pieza.alto),
-        (0, pieza.alto),
-        (0, 0)
+def _dibujar_rectangulo(msp, x0, y0, ancho, alto, layer="CONTORNO"):
+    """Rectángulo con 4 LINEs separadas (compatible V8)"""
+    puntos = [
+        (x0, y0),
+        (x0 + ancho, y0),
+        (x0 + ancho, y0 + alto),
+        (x0, y0 + alto),
     ]
-    
-    msp.add_lwpolyline(
-        puntos_contorno,
-        dxfattribs={"layer": "CONTORNO_EXTERIOR", "color": 1}
+    for i in range(4):
+        msp.add_line(
+            start=puntos[i],
+            end=puntos[(i + 1) % 4],
+            dxfattribs={"layer": layer}
+        )
+
+
+def _dibujar_circulo(msp, cx, cy, radio, layer):
+    msp.add_circle(
+        center=(cx, cy),
+        radius=radio,
+        dxfattribs={"layer": layer}
     )
+
+
+def _dibujar_pieza_en_posicion(msp, pieza, offset_x, offset_y, rotada=False):
+    """Dibuja pieza en (offset_x, offset_y), rotada opcionalmente 90°"""
+    if rotada:
+        ancho = pieza.alto
+        alto = pieza.ancho
+    else:
+        ancho = pieza.ancho
+        alto = pieza.alto
     
-    # ====== OPERACIONES (agujeros, ranuras, etc.) ======
+    _dibujar_rectangulo(msp, offset_x, offset_y, ancho, alto, layer="CONTORNO")
+    
     for op in pieza.operaciones:
-        x, y = op.posicion
+        x_orig, y_orig = op.posicion
         
-        if op.tipo == TipoOperacion.AGUJERO_CIEGO:
-            # Agujero ciego (típicamente minifix 15mm)
-            diametro = op.parametros.get("diametro", 15)
-            layer = _seleccionar_layer_por_diametro(diametro)
-            
-            msp.add_circle(
-                center=(x, y),
-                radius=diametro / 2,
-                dxfattribs={"layer": layer, "color": LAYERS_ASPIRE[layer]["color"]}
-            )
+        if rotada:
+            x_final = offset_x + y_orig
+            y_final = offset_y + pieza.ancho - x_orig
+        else:
+            x_final = offset_x + x_orig
+            y_final = offset_y + y_orig
         
-        elif op.tipo == TipoOperacion.AGUJERO_PASANTE:
-            # Agujero pasante (típicamente tarugo 8mm)
-            diametro = op.parametros.get("diametro", 8)
-            layer = _seleccionar_layer_por_diametro(diametro)
-            
-            msp.add_circle(
-                center=(x, y),
-                radius=diametro / 2,
-                dxfattribs={"layer": layer, "color": LAYERS_ASPIRE[layer]["color"]}
-            )
+        diametro = op.parametros.get("diametro", 8)
+        if diametro >= 14:
+            layer = "MINIFIX_15"
+            radio = 15 / 2
+        elif diametro >= 6:
+            layer = "TARUGO_8"
+            radio = 8 / 2
+        else:
+            layer = "MECHA_4"
+            radio = 4 / 2
         
-        elif op.tipo == TipoOperacion.RANURA:
-            # Ranura rectangular
-            ancho = op.parametros.get("ancho", 4)
-            largo = op.parametros.get("largo", 50)
-            angulo = op.parametros.get("angulo", 0)
-            
-            # Por simplificar, usar rectángulo
-            # En producción, implementar rotaciones si es necesario
-            rect_points = [
-                (x - ancho/2, y - largo/2),
-                (x + ancho/2, y - largo/2),
-                (x + ancho/2, y + largo/2),
-                (x - ancho/2, y + largo/2),
-                (x - ancho/2, y - largo/2),
-            ]
-            msp.add_lwpolyline(
-                rect_points,
-                dxfattribs={"layer": "RANURAS", "color": 5}
-            )
-        
-        elif op.tipo == TipoOperacion.GRABADO:
-            # Grabado (simplemente marcado con círculo pequeño)
-            msp.add_circle(
-                center=(x, y),
-                radius=1,
-                dxfattribs={"layer": "GRABADO", "color": 6}
-            )
+        _dibujar_circulo(msp, x_final, y_final, radio, layer)
+
+
+def exportar_pieza_simple(pieza, path: str):
+    """Exporta UNA pieza (sin nesting)"""
+    doc, msp = _crear_documento()
+    _dibujar_pieza_en_posicion(msp, pieza, 0, 0, rotada=False)
     
-    # ====== METADATOS ======
-    if agregar_metadata:
-        # Agregar dimensiones como texto en un layer diferente
-        try:
-            doc.layers.new(name="METADATA", dxfattribs={"color": 7})
-        except:
-            pass
-        
-        # Texto con dimensiones
-        texto = f"{pieza.nombre} {pieza.ancho}x{pieza.alto}mm"
-        msp.add_text(
-            text=texto,
-            dxfattribs={
-                "layer": "METADATA",
-                "height": 8,
-                "color": 7
-            }
-        ).set_placement((0, -20))
-    
-    # ====== GUARDAR ======
-    # Crear directorio si no existe
     os.makedirs(Path(path).parent, exist_ok=True)
     doc.saveas(path)
-    
-    print(f"✓ Exportado: {path}")
 
 
-def exportar_proyecto(piezas: list[Pieza], directorio_salida: str) -> None:
+def exportar_placa(piezas_con_posicion, path: str, 
+                   placa_ancho: float, placa_alto: float,
+                   dibujar_contorno_placa: bool = True):
     """
-    Exporta todas las piezas de un proyecto a archivos DXF separados.
-    
-    Genera:
-    - Un DXF por tipo de pieza
-    - Archivo manifest.txt con información de todas las piezas
+    Exporta placa completa con varias piezas ya nesteadas.
     
     Args:
-        piezas: Lista de objetos Pieza
-        directorio_salida: Ruta donde guardar los archivos
+        piezas_con_posicion: lista de (pieza, x, y, rotada)
+        path: ruta del DXF
+        placa_ancho, placa_alto: dimensiones de la placa
+        dibujar_contorno_placa: dibujar rectángulo informativo de la placa
     """
-    os.makedirs(directorio_salida, exist_ok=True)
+    doc, msp = _crear_documento()
     
-    # Exportar cada pieza
-    piezas_exportadas = []
-    for pieza in piezas:
-        # Nombre seguro para archivo
-        nombre_archivo = pieza.nombre.lower().replace(" ", "_")
-        ruta_dxf = os.path.join(directorio_salida, f"{nombre_archivo}.dxf")
-        
-        exportar_pieza_dxf(pieza, ruta_dxf)
-        piezas_exportadas.append({
-            "nombre": pieza.nombre,
-            "archivo": f"{nombre_archivo}.dxf",
-            "cantidad": pieza.cantidad,
-            "dimensiones": f"{pieza.ancho}x{pieza.alto}mm",
-            "area_m2": round(pieza.area_total / 1_000_000, 4),
-            "operaciones": len(pieza.operaciones),
-        })
+    if dibujar_contorno_placa:
+        if "PLACA" not in doc.layers:
+            doc.layers.add(name="PLACA", color=8)
+        _dibujar_rectangulo(msp, 0, 0, placa_ancho, placa_alto, layer="PLACA")
     
-    # Generar manifest
-    manifest_path = os.path.join(directorio_salida, "manifest.txt")
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        f.write("=" * 70 + "\n")
-        f.write("MANIFEST DE PIEZAS\n")
-        f.write("=" * 70 + "\n\n")
-        
-        f.write("Instrucciones para Aspire:\n")
-        f.write("1. Abre Aspire\n")
-        f.write("2. Para cada pieza:\n")
-        f.write("   - File > Open Vector File\n")
-        f.write("   - Selecciona el .dxf correspondiente\n")
-        f.write("   - Los layers ya están organizados (colores indican herramientas)\n")
-        f.write("3. Configura las herramientas según los colores\n")
-        f.write("4. Genera toolpaths\n\n")
-        
-        f.write("=" * 70 + "\n")
-        f.write("PIEZAS\n")
-        f.write("=" * 70 + "\n\n")
-        
-        for pieza_info in piezas_exportadas:
-            f.write(f"Archivo: {pieza_info['archivo']}\n")
-            f.write(f"  Nombre: {pieza_info['nombre']}\n")
-            f.write(f"  Cantidad: {pieza_info['cantidad']}\n")
-            f.write(f"  Dimensiones: {pieza_info['dimensiones']}\n")
-            f.write(f"  Área total: {pieza_info['area_m2']} m²\n")
-            f.write(f"  Operaciones CNC: {pieza_info['operaciones']}\n")
-            f.write("\n")
-        
-        f.write("=" * 70 + "\n")
-        f.write("LAYERS Y HERRAMIENTAS\n")
-        f.write("=" * 70 + "\n\n")
-        
-        for layer_name, props in LAYERS_ASPIRE.items():
-            f.write(f"{layer_name}:\n")
-            f.write(f"  Color: {props['color']}\n")
-            f.write(f"  Herramienta: {props['herramienta']}\n")
-            f.write(f"  {props['descripcion']}\n\n")
+    for pieza, x, y, rotada in piezas_con_posicion:
+        _dibujar_pieza_en_posicion(msp, pieza, x, y, rotada=rotada)
     
-    print(f"\n✓ Proyecto exportado a: {directorio_salida}")
-    print(f"✓ Manifest guardado: {manifest_path}")
-
-
-def _seleccionar_layer_por_diametro(diametro: float) -> str:
-    """Selecciona el layer apropiado según el diámetro del agujero"""
-    if diametro >= 14:  # Minifix 15mm
-        return "AGUJEROS_15MM"
-    elif diametro >= 6:  # Tarugo 8mm
-        return "AGUJEROS_8MM"
-    elif diametro >= 3:  # Pequeños 4mm
-        return "AGUJEROS_4MM"
-    else:
-        return "GRABADO"
+    os.makedirs(Path(path).parent, exist_ok=True)
+    doc.saveas(path)
 
 
 def validar_dxf(ruta_dxf: str) -> dict:
-    """
-    Valida un archivo DXF existente.
-    
-    Retorna:
-        dict con información del archivo y posibles problemas
-    """
     try:
         doc = ezdxf.readfile(ruta_dxf)
-    except Exception as e:
+        msp = doc.modelspace()
+        conteo = {}
+        for entity in msp:
+            tipo = entity.dxftype()
+            conteo[tipo] = conteo.get(tipo, 0) + 1
         return {
-            "valido": False,
-            "error": str(e)
+            "valido": True,
+            "version": doc.dxfversion,
+            "layers": len(doc.layers),
+            "entidades": conteo,
         }
-    
-    info = {
-        "valido": True,
-        "ruta": ruta_dxf,
-        "layers": len(doc.layers),
-        "entities": len(list(doc.modelspace())),
-        "problemas": [],
-    }
-    
-    # Verificar layers estándar
-    layers_presentes = {l.dxf.name for l in doc.layers}
-    layers_esperados = set(LAYERS_ASPIRE.keys())
-    
-    if not layers_presentes.intersection(layers_esperados):
-        info["problemas"].append(
-            "No se encontraron layers estándar Aspire"
-        )
-    
-    # Verificar entidades
-    msp = doc.modelspace()
-    tipos_entidad = {}
-    for entity in msp:
-        tipo = entity.dxftype()
-        tipos_entidad[tipo] = tipos_entidad.get(tipo, 0) + 1
-    
-    info["tipos_entidad"] = tipos_entidad
-    
-    return info
-
-
-if __name__ == "__main__":
-    # Test
-    from furniture_estanteria import estanteria_media
-    
-    print("Probando exportador DXF...")
-    
-    estanteria = estanteria_media()
-    piezas = estanteria.generar_piezas()
-    
-    exportar_proyecto(piezas, "test_output/estanteria_001")
-    
-    print("\nValidación de DXF...")
-    for pieza in piezas[:1]:  # Validar la primera
-        ruta = f"test_output/estanteria_001/{pieza.nombre.lower().replace(' ', '_')}.dxf"
-        validacion = validar_dxf(ruta)
-        print(validacion)
+    except Exception as e:
+        return {"valido": False, "error": str(e)}

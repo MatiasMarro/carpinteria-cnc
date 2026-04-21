@@ -1,9 +1,17 @@
 """
-cli.py - Interfaz de línea de comandos
+cli.py - Interfaz de línea de comandos con NESTING INTEGRADO
+=============================================================
+
 Uso:
     python cli.py listar
     python cli.py usar escritorio_estandar --exportar
-    python cli.py escritorio --ancho 1200 --profundidad 600 --exportar
+    python cli.py escritorio --ancho 1200 --profundidad 600 --mecha 6 --exportar
+    python cli.py estanteria --ancho 800 --alto 1800 --mecha 4 --exportar
+    
+Parámetros de nesting:
+    --mecha N          Tamaño de mecha en mm (define margen entre piezas)
+    --placa-ancho N    Ancho de placa (default 1830)
+    --placa-alto N     Alto de placa (default 2750)
 """
 
 import sys
@@ -11,7 +19,6 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
-# Agregar src/ al path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from furniture_core import MATERIALES, TipoUnion
@@ -22,7 +29,8 @@ from furniture_escritorio import (
 from furniture_estanteria import (
     Estanteria, estanteria_pequena, estanteria_media, estanteria_grande
 )
-from dxf_exporter import exportar_proyecto
+from dxf_exporter import exportar_placa, exportar_pieza_simple
+from nesting_engine import nesting_automatico, resumen_nesting
 
 
 MUEBLES_PRECONFIGURADOS = {
@@ -46,6 +54,89 @@ def generar_id_proyecto() -> str:
     return f"P_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
 
+def procesar_mueble_con_nesting(mueble, nombre_proyecto: str, args):
+    """
+    Pipeline completo: mueble -> piezas -> nesting -> DXF por placa
+    """
+    # 1. Generar piezas
+    piezas = mueble.generar_piezas()
+    resumen = mueble.resumen()
+    
+    print(f"MUEBLE: {mueble}")
+    print(f"Piezas generadas: {len(piezas)} tipos")
+    print(f"Costo material: ${resumen['costos']['material_estimado']:,}")
+    print(f"Tiempo CNC estimado: {resumen['produccion']['tiempo_cnc_horas']:.2f} horas")
+    
+    if resumen.get('validaciones'):
+        print("\nVALIDACIONES:")
+        for warning in resumen['validaciones']:
+            print(f"  ! {warning}")
+    
+    # 2. Nesting
+    print(f"\nNESTING (mecha {args.mecha}mm, placa {args.placa_ancho}x{args.placa_alto}mm):")
+    print("-" * 80)
+    
+    resultado = nesting_automatico(
+        piezas=piezas,
+        placa_ancho=args.placa_ancho,
+        placa_alto=args.placa_alto,
+        margen_corte=args.mecha,
+        permitir_rotacion=True,
+        max_placas=10
+    )
+    
+    print(resumen_nesting(resultado))
+    
+    # 3. Exportar DXF por placa
+    if args.exportar:
+        proyecto_id = generar_id_proyecto()
+        output_dir = Path(__file__).parent / "output" / f"{proyecto_id}_{nombre_proyecto}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"\nEXPORTANDO:")
+        print("-" * 80)
+        
+        for placa in resultado.placas:
+            nombre_dxf = f"placa_{placa.numero}_de_{resultado.num_placas}.dxf"
+            ruta_dxf = output_dir / nombre_dxf
+            
+            exportar_placa(
+                piezas_con_posicion=placa.piezas,
+                path=str(ruta_dxf),
+                placa_ancho=placa.ancho,
+                placa_alto=placa.alto,
+                dibujar_contorno_placa=True
+            )
+            print(f"  {nombre_dxf} - {placa.num_piezas} piezas ({placa.eficiencia:.1f}% eficiencia)")
+        
+        # Generar manifest
+        manifest = output_dir / "manifest.txt"
+        with open(manifest, "w", encoding="utf-8") as f:
+            f.write(f"PROYECTO: {nombre_proyecto}\n")
+            f.write(f"FECHA: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+            f.write(f"MUEBLE: {mueble}\n")
+            f.write("\n")
+            f.write(f"PLACA: {args.placa_ancho}x{args.placa_alto}mm\n")
+            f.write(f"MECHA: {args.mecha}mm (margen entre piezas)\n")
+            f.write(f"PLACAS NECESARIAS: {resultado.num_placas}\n")
+            f.write(f"EFICIENCIA: {resultado.eficiencia_promedio:.1f}%\n")
+            f.write("\n")
+            f.write("INSTRUCCIONES PARA ASPIRE:\n")
+            f.write("1. File > Open Vector File > selecciona placa_X.dxf\n")
+            f.write("2. Configura material: MDF 18mm, dimensiones placa\n")
+            f.write("3. Layers importados:\n")
+            f.write("   - CONTORNO (rojo): contorno exterior -> mecha 6mm\n")
+            f.write("   - MINIFIX_15 (amarillo): agujeros minifix -> mecha 15mm\n")
+            f.write("   - TARUGO_8 (verde): agujeros tarugos -> mecha 8mm\n")
+            f.write("   - MECHA_4 (cian): agujeros pequeños -> mecha 4mm\n")
+            f.write("4. Genera toolpaths por cada layer\n")
+            f.write("5. Exporta G-code\n")
+            f.write("6. Carga en Mach3 y ejecuta\n")
+        
+        print(f"\nProyecto exportado en: {output_dir}")
+        print(f"Manifest guardado: manifest.txt")
+
+
 def cmd_listar():
     imprimir_titulo("MUEBLES PRECONFIGURADOS DISPONIBLES")
     for nombre, factory in MUEBLES_PRECONFIGURADOS.items():
@@ -58,7 +149,7 @@ def cmd_listar():
         print(f"  CNC: {mueble.tiempo_cnc_estimado()/60:.2f} horas")
 
 
-def cmd_generar_escritorio(args):
+def cmd_escritorio(args):
     imprimir_titulo(f"ESCRITORIO {args.ancho}x{args.profundidad}x{args.altura_trabajo}mm")
     try:
         material = MATERIALES.get(args.material, MATERIALES["MDF_18"])
@@ -72,30 +163,15 @@ def cmd_generar_escritorio(args):
             incluir_espaldar=args.con_espaldar,
             altura_cajon=args.altura_cajon
         )
-        piezas = escritorio.generar_piezas()
-        resumen = escritorio.resumen()
-        
-        print(f"OK: {escritorio}")
-        print(f"Piezas: {len(piezas)}")
-        print(f"Costo material: ${resumen['costos']['material_estimado']:,}")
-        print(f"Tiempo CNC: {resumen['produccion']['tiempo_cnc_horas']:.2f} horas")
-        
-        if resumen['validaciones']:
-            print("\nVALIDACIONES:")
-            for warning in resumen['validaciones']:
-                print(f"! {warning}")
-        
-        if args.exportar:
-            proyecto_id = generar_id_proyecto()
-            output_dir = Path(__file__).parent / "output" / f"{proyecto_id}_escritorio"
-            exportar_proyecto(piezas, str(output_dir))
-            print(f"\nOK: Exportado a: {output_dir}")
+        procesar_mueble_con_nesting(escritorio, "escritorio", args)
     except Exception as e:
         print(f"ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
-def cmd_generar_estanteria(args):
+def cmd_estanteria(args):
     imprimir_titulo(f"ESTANTERIA {args.ancho}x{args.alto}x{args.profundidad}mm")
     try:
         material = MATERIALES.get(args.material, MATERIALES["MDF_18"])
@@ -107,84 +183,83 @@ def cmd_generar_estanteria(args):
             material=material,
             tipo_union=TipoUnion.MINIFIX
         )
-        piezas = estanteria.generar_piezas()
-        resumen = estanteria.resumen()
-        
-        print(f"OK: {estanteria}")
-        print(f"Piezas: {len(piezas)}")
-        print(f"Costo material: ${resumen['costos']['material_estimado']:,}")
-        print(f"Tiempo CNC: {resumen['produccion']['tiempo_cnc_horas']:.2f} horas")
-        
-        if args.exportar:
-            proyecto_id = generar_id_proyecto()
-            output_dir = Path(__file__).parent / "output" / f"{proyecto_id}_estanteria"
-            exportar_proyecto(piezas, str(output_dir))
-            print(f"\nOK: Exportado a: {output_dir}")
+        procesar_mueble_con_nesting(estanteria, "estanteria", args)
     except Exception as e:
         print(f"ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
-def cmd_usar_preconfigurado(args):
+def cmd_usar(args):
     if args.nombre not in MUEBLES_PRECONFIGURADOS:
-        print(f"ERROR: Mueble '{args.nombre}' no encontrado")
+        print(f"ERROR: '{args.nombre}' no encontrado")
         print(f"Disponibles: {', '.join(MUEBLES_PRECONFIGURADOS.keys())}")
         sys.exit(1)
     
     factory = MUEBLES_PRECONFIGURADOS[args.nombre]
     mueble = factory()
     imprimir_titulo(f"{args.nombre.upper()}")
-    print(f"OK: {mueble}")
-    piezas = mueble.generar_piezas()
-    print(f"Piezas: {len(piezas)}")
-    print(f"Material: ${mueble.costo_material():,}")
-    print(f"CNC: {mueble.tiempo_cnc_estimado()/60:.2f} horas")
-    
-    if args.exportar:
-        proyecto_id = generar_id_proyecto()
-        output_dir = Path(__file__).parent / "output" / f"{proyecto_id}_{args.nombre}"
-        exportar_proyecto(piezas, str(output_dir))
-        print(f"\nOK: Exportado a: {output_dir}")
+    procesar_mueble_con_nesting(mueble, args.nombre, args)
+
+
+def agregar_args_nesting(parser):
+    """Agrega argumentos comunes de nesting a un parser"""
+    parser.add_argument("--mecha", type=float, default=4,
+                       help="Tamaño de mecha en mm (margen entre piezas). Default: 4")
+    parser.add_argument("--placa-ancho", type=float, default=1830,
+                       help="Ancho de placa en mm. Default: 1830")
+    parser.add_argument("--placa-alto", type=float, default=2750,
+                       help="Alto de placa en mm. Default: 2750")
+    parser.add_argument("--exportar", action="store_true",
+                       help="Exportar DXF por placa")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sistema parametrico de muebles CNC")
+    parser = argparse.ArgumentParser(
+        description="Sistema paramétrico de muebles CNC con nesting integrado",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     subparsers = parser.add_subparsers(dest="command")
     
+    # Comando: listar
     subparsers.add_parser("listar", help="Lista muebles preconfigurados")
     
-    gen_escritorio = subparsers.add_parser("escritorio", help="Genera escritorio personalizado")
-    gen_escritorio.add_argument("--ancho", type=float, default=1200)
-    gen_escritorio.add_argument("--profundidad", type=float, default=600)
-    gen_escritorio.add_argument("--altura-trabajo", type=float, default=750)
-    gen_escritorio.add_argument("--num-cajones", type=int, default=2, choices=[2, 3])
-    gen_escritorio.add_argument("--altura-cajon", type=float, default=150)
-    gen_escritorio.add_argument("--con-espaldar", action="store_true", default=True)
-    gen_escritorio.add_argument("--material", default="MDF_18")
-    gen_escritorio.add_argument("--exportar", action="store_true")
+    # Comando: escritorio
+    p_esc = subparsers.add_parser("escritorio", help="Genera escritorio personalizado")
+    p_esc.add_argument("--ancho", type=float, default=1200)
+    p_esc.add_argument("--profundidad", type=float, default=600)
+    p_esc.add_argument("--altura-trabajo", type=float, default=750)
+    p_esc.add_argument("--num-cajones", type=int, default=2, choices=[2, 3])
+    p_esc.add_argument("--altura-cajon", type=float, default=150)
+    p_esc.add_argument("--con-espaldar", action="store_true", default=True)
+    p_esc.add_argument("--material", default="MDF_18")
+    agregar_args_nesting(p_esc)
     
-    gen_estanteria = subparsers.add_parser("estanteria", help="Genera estanteria personalizada")
-    gen_estanteria.add_argument("--ancho", type=float, default=800)
-    gen_estanteria.add_argument("--alto", type=float, default=1800)
-    gen_estanteria.add_argument("--profundidad", type=float, default=350)
-    gen_estanteria.add_argument("--estantes", type=int, default=5)
-    gen_estanteria.add_argument("--material", default="MDF_18")
-    gen_estanteria.add_argument("--exportar", action="store_true")
+    # Comando: estanteria
+    p_est = subparsers.add_parser("estanteria", help="Genera estantería personalizada")
+    p_est.add_argument("--ancho", type=float, default=800)
+    p_est.add_argument("--alto", type=float, default=1800)
+    p_est.add_argument("--profundidad", type=float, default=350)
+    p_est.add_argument("--estantes", type=int, default=5)
+    p_est.add_argument("--material", default="MDF_18")
+    agregar_args_nesting(p_est)
     
-    preconfig = subparsers.add_parser("usar", help="Usa un mueble preconfigurado")
-    preconfig.add_argument("nombre")
-    preconfig.add_argument("--exportar", action="store_true")
+    # Comando: usar
+    p_usar = subparsers.add_parser("usar", help="Usa un mueble preconfigurado")
+    p_usar.add_argument("nombre")
+    agregar_args_nesting(p_usar)
     
     args = parser.parse_args()
     
     if args.command == "listar":
         cmd_listar()
     elif args.command == "escritorio":
-        cmd_generar_escritorio(args)
+        cmd_escritorio(args)
     elif args.command == "estanteria":
-        cmd_generar_estanteria(args)
+        cmd_estanteria(args)
     elif args.command == "usar":
-        cmd_usar_preconfigurado(args)
+        cmd_usar(args)
     else:
         parser.print_help()
 

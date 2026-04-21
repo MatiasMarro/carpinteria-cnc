@@ -1,13 +1,23 @@
 # Carpintería 2.0 - Sistema Paramétrico CNC
 
-Sistema de automatización que genera muebles paramétricos listos para CNC.
+Sistema que genera muebles paramétricos con **nesting automático** listo para CNC.
 
-Genera automáticamente:
-- Piezas individuales (laterales, tapas, cajones, etc.)
-- Archivos DXF compatibles con Vectric Aspire
-- Cálculo de costos de material
-- Estimación de tiempo CNC
-- Lista de accesorios (minifix, tornillos, correderas)
+## Features principales
+
+- Generación paramétrica de muebles (escritorios, estanterías)
+- **Nesting automático**: acomoda piezas en placas optimizando uso
+- **Un DXF por placa**: todo el nesting ya resuelto
+- Compatible con Aspire V8.502 (DXF R2000)
+- Configurable: mecha, tamaño de placa, rotación
+- Cálculo automático de costos y tiempos
+
+## Flujo de trabajo
+
+```
+CLI → nesting automático → DXF(s) por placa → Aspire → G-code → Mach3
+```
+
+Un solo comando y tenés el/los archivo(s) DXF listos para abrir en Aspire con todas las piezas ya acomodadas en las placas.
 
 ## Instalación
 
@@ -20,76 +30,112 @@ cd carpinteria-cnc
 pip install -r requirements.txt
 ```
 
-## Uso rápido
+Dependencias:
+- `ezdxf` - generación de archivos DXF
+- `rectpack` - algoritmo de nesting
 
+## Uso
+
+### Ver muebles preconfigurados
 ```bash
-# Ver muebles preconfigurados
 python cli.py listar
-
-# Generar escritorio estándar (120x60cm, 2 cajones)
-python cli.py usar escritorio_estandar --exportar
-
-# Personalizar dimensiones
-python cli.py escritorio --ancho 1400 --profundidad 700 --exportar
-
-# Estantería personalizada
-python cli.py estanteria --ancho 1000 --alto 2000 --estantes 6 --exportar
 ```
+
+### Generar un mueble con nesting automático
+```bash
+# Escritorio estándar, mecha 6mm
+python cli.py usar escritorio_estandar --mecha 6 --exportar
+
+# Escritorio personalizado
+python cli.py escritorio --ancho 1400 --profundidad 700 --mecha 6 --exportar
+
+# Estantería
+python cli.py estanteria --ancho 1000 --alto 2000 --estantes 6 --mecha 4 --exportar
+```
+
+### Parámetros de nesting
+
+| Parámetro | Default | Descripción |
+|-----------|---------|-------------|
+| `--mecha` | 4 | Tamaño de mecha en mm (margen entre piezas) |
+| `--placa-ancho` | 1830 | Ancho de placa MDF en mm |
+| `--placa-alto` | 2750 | Alto de placa MDF en mm |
+| `--exportar` | - | Genera los DXF (sino solo muestra nesting) |
+
+## Output
+
+Cada proyecto genera:
+```
+output/P_20260421_154200_escritorio_estandar/
+├── placa_1_de_1.dxf       # Una placa con todas las piezas
+└── manifest.txt           # Info del proyecto e instrucciones
+```
+
+Si el mueble requiere más de una placa:
+```
+output/P_20260421_154218_escritorio_ejecutivo/
+├── placa_1_de_2.dxf
+├── placa_2_de_2.dxf
+└── manifest.txt
+```
+
+## Convención de layers DXF
+
+El exportador genera archivos con layers que Aspire reconoce:
+
+| Layer | Color | Herramienta sugerida |
+|-------|-------|---------------------|
+| CONTORNO | Rojo | Mecha 6mm (contorno exterior) |
+| MINIFIX_15 | Amarillo | Mecha 15mm (agujeros minifix) |
+| TARUGO_8 | Verde | Mecha 8mm (agujeros tarugo) |
+| MECHA_4 | Cian | Mecha 4mm (agujeros pequeños) |
+| RANURA | Magenta | Mecha 4mm (ranuras) |
+| PLACA | Gris | Informativo (contorno placa, no cortar) |
+
+## Muebles disponibles
+
+### Escritorios
+- `escritorio_compacto` - 100x50x75cm, 2 cajones
+- `escritorio_estandar` - 120x60x75cm, 2 cajones
+- `escritorio_ejecutivo` - 150x75x75cm, 3 cajones
+- `escritorio_gaming` - 140x70x78cm, 2 cajones
+
+### Estanterías
+- `estanteria_pequena` - 60x100x35cm, 4 estantes
+- `estanteria_media` - 80x180x35cm, 5 estantes
+- `estanteria_grande` - 100x200x35cm, 6 estantes
 
 ## Estructura del proyecto
 
 ```
 Carpinteria2.0/
-├── cli.py                 # Interfaz de línea de comandos
+├── cli.py                          # Interfaz CLI
 ├── src/
-│   ├── furniture_core.py      # Clases base
-│   ├── furniture_escritorio.py # Generador escritorios
-│   ├── furniture_estanteria.py # Generador estanterías
-│   └── dxf_exporter.py        # Exportador DXF
-├── output/                # Proyectos generados (DXF)
-├── data/                  # Datos históricos (DB, CSVs)
-├── docs/                  # Documentación
-└── requirements.txt       # Dependencias Python
+│   ├── furniture_core.py           # Clases base
+│   ├── furniture_escritorio.py     # Generador escritorios
+│   ├── furniture_estanteria.py     # Generador estanterías
+│   ├── nesting_engine.py           # Motor de nesting (rectpack)
+│   └── dxf_exporter.py             # Exportador DXF V8-compatible
+├── output/                         # DXFs generados por proyecto
+├── data/                           # Datos históricos (futuro)
+├── docs/                           # Documentación extendida
+├── requirements.txt
+├── instalar.bat                    # Setup Windows
+└── setup_git.bat                   # Setup GitHub
 ```
 
-## Flujo de trabajo
+## Compatibilidad DXF
 
-```
-1. Ejecutar CLI  →  2. Archivos DXF  →  3. Aspire  →  4. G-code  →  5. Mach3
-```
+Los DXF generados usan formato **R2000 (AC1015)** que es el más compatible con software antiguo como Aspire V8.502. Solo usa entidades básicas:
+- LINE (para contornos)
+- CIRCLE (para agujeros)
 
-## Muebles disponibles
-
-### Escritorios
-- `escritorio_compacto` - 100x50cm, 2 cajones
-- `escritorio_estandar` - 120x60cm, 2 cajones
-- `escritorio_ejecutivo` - 150x75cm, 3 cajones
-- `escritorio_gaming` - 140x70cm, 2 cajones
-
-### Estanterías
-- `estanteria_pequena` - 60x100cm, 4 estantes
-- `estanteria_media` - 80x180cm, 5 estantes
-- `estanteria_grande` - 100x200cm, 6 estantes
-
-## Convención de layers DXF
-
-El exportador genera archivos con layers predefinidos que Aspire reconoce:
-
-| Layer | Color | Herramienta |
-|-------|-------|-------------|
-| CONTORNO_EXTERIOR | Rojo | Mecha 6mm |
-| AGUJEROS_15MM | Amarillo | Mecha 15mm (minifix) |
-| AGUJEROS_8MM | Verde | Mecha 8mm (tarugo) |
-| AGUJEROS_4MM | Cian | Mecha 4mm |
-| RANURAS | Magenta | Mecha 4mm |
+No usa LWPOLYLINE ni XDATA que podrían confundir a versiones viejas.
 
 ## Próximas fases
 
-- [ ] Nesting automático (rectpack)
 - [ ] Base de datos de sobrantes
 - [ ] Dashboard web (Streamlit)
 - [ ] Integración Fusion 360
-
-## Licencia
-
-Privado - Todos los derechos reservados
+- [ ] Generación directa de G-code (sin Aspire)
+- [ ] IoT en CNC (tracking tiempos reales)

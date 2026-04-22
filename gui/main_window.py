@@ -17,10 +17,10 @@ from gui.panel_nesting import PanelNesting
 from gui.panel_exportar import PanelExportar
 
 
-# â”€â”€ Stepper header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Stepper header ─────────────────────────────────────────────────────────
 
 class _StepperHeader(QWidget):
-    """Barra superior con 3 cÃ­rculos numerados y lÃ­neas conectoras."""
+    """Barra superior con 3 círculos numerados y líneas conectoras."""
 
     PASOS = [
         (LABELS["paso_1_titulo"], LABELS["paso_1_sub"]),
@@ -31,7 +31,7 @@ class _StepperHeader(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._paso_actual   = 0
-        self._paso_maximo   = 0   # hasta quÃ© paso se llegÃ³ (desbloquea)
+        self._paso_maximo   = 0   # hasta qué paso se llegó (desbloquea)
         self.setFixedHeight(DIMENSIONES["stepper_alto"])
         self._build()
 
@@ -110,7 +110,7 @@ class _StepItem(QWidget):
         vbox.setSpacing(2)
         vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Fila: cÃ­rculo + tÃ­tulo
+        # Fila: círculo + título
         row = QHBoxLayout()
         row.setSpacing(10)
         row.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -201,14 +201,14 @@ class _StepCircle(QWidget):
         if self._estado == "completado":
             p.setPen(QPen(text, 2))
             p.setFont(QFont(FUENTES["familia"], 9, QFont.Weight.Bold))
-            p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "âœ“")
+            p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "✓")
         else:
             p.setPen(QPen(text, 1))
             p.setFont(QFont(FUENTES["familia"], 9, QFont.Weight.Bold))
             p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, str(self._numero))
 
 
-# â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Footer ─────────────────────────────────────────────────────────────────
 
 class _Footer(QFrame):
     def __init__(self, parent=None) -> None:
@@ -241,10 +241,10 @@ class _Footer(QFrame):
         layout.addWidget(self.btn_continuar)
 
 
-# â”€â”€ Ventana principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Ventana principal ──────────────────────────────────────────────────────
 
 class MainWindow(QMainWindow):
-    """Ventana principal â€” stepper wizard de 3 pasos."""
+    """Ventana principal — stepper wizard de 3 pasos."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -270,7 +270,7 @@ class MainWindow(QMainWindow):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(0)
 
-        # â”€â”€ Header con nombre de app + stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Header con nombre de app + stepper ────────────────────────────
         self.header_frame = QFrame()
         self.header_frame.setObjectName("headerFrame")
         header_vbox = QVBoxLayout(self.header_frame)
@@ -310,7 +310,7 @@ class MainWindow(QMainWindow):
 
         vbox.addWidget(self.header_frame)
 
-        # â”€â”€ Stack de paneles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Stack de paneles ──────────────────────────────────────────────
         self.stack = QStackedWidget()
         self.panel_mueble  = PanelMueble(self.state, self)
         self.panel_nesting = PanelNesting(self.state, self)
@@ -320,7 +320,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.panel_exportar)  # 2
         vbox.addWidget(self.stack, stretch=1)
 
-        # â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Footer ────────────────────────────────────────────────────────
         sep3 = QFrame()
         sep3.setFrameShape(QFrame.Shape.HLine)
         sep3.setObjectName("sepFooter")
@@ -329,13 +329,13 @@ class MainWindow(QMainWindow):
         self.footer = _Footer()
         vbox.addWidget(self.footer)
 
-        # â”€â”€ SeÃ±ales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Señales ───────────────────────────────────────────────────────
         self.panel_mueble.mueble_generado.connect(self._on_mueble_generado)
         self.panel_nesting.nesting_calculado.connect(self._on_nesting_calculado)
         self.footer.btn_continuar.clicked.connect(self._continuar)
         self.footer.btn_volver.clicked.connect(self._volver)
 
-    # â”€â”€ NavegaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Navegación ────────────────────────────────────────────────────────
 
     def _ir_paso(self, idx: int) -> None:
         self._paso = idx
@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
         # Footer izquierdo
         self.footer.btn_volver.setVisible(idx > 0)
 
-        # Estado del botÃ³n continuar segÃºn paso
+        # Estado del botón continuar según paso
         if idx == 0:
             self._set_continuar(self.state.tiene_mueble, "Generá el mueble para continuar")
         elif idx == 1:
@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
             self.panel_exportar.actualizar_estado()
             self.footer.btn_continuar.setVisible(False)
 
-        # Mensaje del footer segÃºn paso
+        # Mensaje del footer según paso
         if idx < 2:
             self.footer.btn_continuar.setVisible(True)
 
@@ -371,7 +371,7 @@ class MainWindow(QMainWindow):
         self.footer.btn_continuar.setEnabled(habilitado)
         self.footer.btn_continuar.setToolTip("" if habilitado else tooltip)
 
-    # â”€â”€ Slots de seÃ±ales de paneles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Slots de señales de paneles ───────────────────────────────────────
 
     @pyqtSlot()
     def _on_mueble_generado(self) -> None:
@@ -389,7 +389,7 @@ class MainWindow(QMainWindow):
         self.footer.lbl_estado.setStyleSheet(f"color: {COLORES['exito']}; font-size: 9pt;")
         self.panel_exportar.actualizar_estado()
 
-    # â”€â”€ Stylesheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Stylesheet ────────────────────────────────────────────────────────
 
     def _apply_stylesheet(self) -> None:
         c = COLORES
@@ -398,7 +398,7 @@ class MainWindow(QMainWindow):
         ffm = f["familia_mono"]
 
         self.setStyleSheet(f"""
-            /* â”€â”€ Base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Base ─────────────────────────────────────────────────── */
             QMainWindow, QWidget {{
                 background-color: {c["fondo_app"]};
                 color: {c["texto_primario"]};
@@ -406,7 +406,7 @@ class MainWindow(QMainWindow):
                 font-size: {f["size_normal"]}pt;
             }}
 
-            /* â”€â”€ Header / topbar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Header / topbar ──────────────────────────────────────── */
             QFrame#headerFrame {{
                 background-color: {c["fondo_panel"]};
             }}
@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
                 max-height: 1px;
             }}
 
-            /* â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Footer ───────────────────────────────────────────────── */
             QFrame#footer {{
                 background-color: {c["fondo_panel"]};
             }}
@@ -437,12 +437,12 @@ class MainWindow(QMainWindow):
                 font-size: 9pt;
             }}
 
-            /* â”€â”€ BotÃ³n Continuar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Botón Continuar ──────────────────────────────────────── */
             QPushButton#btnContinuar {{
                 background-color: {c["boton_primario"]};
                 color: {c["boton_primario_texto"]};
                 border: none;
-                border-radius: 5px;
+                border-radius: 2px;
                 padding: 8px 24px;
                 font-weight: bold;
                 font-size: {f["size_normal"]}pt;
@@ -455,12 +455,12 @@ class MainWindow(QMainWindow):
                 color: {c["texto_desactivado"]};
             }}
 
-            /* â”€â”€ BotÃ³n Volver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Botón Volver ─────────────────────────────────────────── */
             QPushButton#btnVolver {{
                 background-color: transparent;
                 color: {c["texto_secundario"]};
                 border: 1px solid {c["borde"]};
-                border-radius: 5px;
+                border-radius: 2px;
                 padding: 8px 18px;
                 font-size: {f["size_normal"]}pt;
             }}
@@ -469,12 +469,12 @@ class MainWindow(QMainWindow):
                 color: {c["texto_primario"]};
             }}
 
-            /* â”€â”€ Botones genÃ©ricos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Botones genéricos ────────────────────────────────────── */
             QPushButton {{
                 background-color: {c["boton_primario"]};
                 color: {c["boton_primario_texto"]};
                 border: none;
-                border-radius: 5px;
+                border-radius: 2px;
                 padding: 7px 20px;
                 font-weight: bold;
                 font-size: {f["size_normal"]}pt;
@@ -487,12 +487,12 @@ class MainWindow(QMainWindow):
                 color: {c["texto_desactivado"]};
             }}
 
-            /* â”€â”€ BotÃ³n outline (sobrantes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Botón outline (sobrantes) ────────────────────────────── */
             QPushButton#btnSobrantes {{
                 background-color: transparent;
                 color: {c["boton_outline_texto"]};
                 border: 1px solid {c["boton_outline_borde"]};
-                border-radius: 5px;
+                border-radius: 2px;
                 padding: 7px 16px;
                 font-weight: normal;
             }}
@@ -504,7 +504,7 @@ class MainWindow(QMainWindow):
                 border-color: {c["borde"]};
             }}
 
-            /* â”€â”€ BotÃ³n secundario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Botón secundario ─────────────────────────────────────── */
             QPushButton#btnSecundario {{
                 background-color: {c["boton_secundario"]};
                 color: {c["boton_secundario_texto"]};
@@ -515,12 +515,12 @@ class MainWindow(QMainWindow):
                 background-color: {c["boton_secundario_hover"]};
             }}
 
-            /* â”€â”€ Inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Inputs ───────────────────────────────────────────────── */
             QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {{
                 background-color: {c["fondo_input"]};
                 color: {c["texto_primario"]};
                 border: 1px solid {c["borde"]};
-                border-radius: 4px;
+                border-radius: 2px;
                 padding: 5px 9px;
                 selection-background-color: {c["acento_naranja"]};
                 selection-color: #000000;
@@ -546,13 +546,13 @@ class MainWindow(QMainWindow):
                 background-color: {c["acento_naranja"]};
             }}
 
-            /* â”€â”€ GroupBox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── GroupBox ─────────────────────────────────────────────── */
             QGroupBox {{
                 color: {c["texto_secundario"]};
                 font-weight: bold;
                 font-size: {f["size_subtitulo"]}pt;
                 border: 1px solid {c["borde"]};
-                border-radius: 6px;
+                border-radius: 2px;
                 margin-top: 14px;
                 padding-top: 10px;
                 background-color: {c["fondo_tarjeta"]};
@@ -566,28 +566,28 @@ class MainWindow(QMainWindow):
                 background-color: {c["fondo_tarjeta"]};
             }}
 
-            /* â”€â”€ Labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Labels ───────────────────────────────────────────────── */
             QLabel {{
                 color: {c["texto_primario"]};
                 background: transparent;
             }}
 
-            /* â”€â”€ TextEdit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── TextEdit ─────────────────────────────────────────────── */
             QTextEdit {{
                 background-color: {c["fondo_input"]};
                 color: {c["texto_primario"]};
                 border: 1px solid {c["borde"]};
-                border-radius: 4px;
+                border-radius: 2px;
                 font-family: "{ffm}", "{f["familia_mono_fallback"]}";
                 font-size: {f["size_pequeño"]}pt;
             }}
 
-            /* â”€â”€ Tabla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Tabla ────────────────────────────────────────────────── */
             QTableWidget {{
                 background-color: {c["fondo_app"]};
                 color: {c["texto_primario"]};
                 border: 1px solid {c["borde"]};
-                border-radius: 4px;
+                border-radius: 2px;
                 gridline-color: {c["borde"]};
                 alternate-background-color: {c["tabla_fila_impar"]};
             }}
@@ -607,39 +607,39 @@ class MainWindow(QMainWindow):
                 font-size: 9pt;
             }}
 
-            /* â”€â”€ Scrollbars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Scrollbars ───────────────────────────────────────────── */
             QScrollBar:vertical {{
-                background: {c["fondo_panel"]}; width: 7px; border-radius: 3px;
+                background: {c["fondo_panel"]}; width: 7px; border-radius: 2px;
             }}
             QScrollBar::handle:vertical {{
-                background: {c["borde"]}; border-radius: 3px; min-height: 24px;
+                background: {c["borde"]}; border-radius: 2px; min-height: 24px;
             }}
             QScrollBar::handle:vertical:hover {{ background: {c["acento_naranja"]}; }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
             QScrollBar:horizontal {{
-                background: {c["fondo_panel"]}; height: 7px; border-radius: 3px;
+                background: {c["fondo_panel"]}; height: 7px; border-radius: 2px;
             }}
             QScrollBar::handle:horizontal {{
-                background: {c["borde"]}; border-radius: 3px; min-width: 24px;
+                background: {c["borde"]}; border-radius: 2px; min-width: 24px;
             }}
             QScrollBar::handle:horizontal:hover {{ background: {c["acento_naranja"]}; }}
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 
-            /* â”€â”€ ProgressBar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── ProgressBar ──────────────────────────────────────────── */
             QProgressBar {{
                 background-color: {c["fondo_input"]};
                 border: 1px solid {c["borde"]};
-                border-radius: 4px;
+                border-radius: 2px;
                 text-align: center;
                 color: {c["texto_primario"]};
                 font-size: 8pt;
             }}
             QProgressBar::chunk {{
                 background-color: {c["acento_naranja"]};
-                border-radius: 3px;
+                border-radius: 2px;
             }}
 
-            /* â”€â”€ Radio / Checkbox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Radio / Checkbox ─────────────────────────────────────── */
             QRadioButton, QCheckBox {{
                 color: {c["texto_primario"]};
                 spacing: 8px;
@@ -647,7 +647,7 @@ class MainWindow(QMainWindow):
             QRadioButton::indicator, QCheckBox::indicator {{
                 width: 15px; height: 15px;
                 border: 2px solid {c["borde"]};
-                border-radius: 3px;
+                border-radius: 2px;
                 background: {c["fondo_input"]};
             }}
             QRadioButton::indicator {{ border-radius: 8px; }}
@@ -656,18 +656,18 @@ class MainWindow(QMainWindow):
                 border: 2px solid {c["acento_naranja"]};
             }}
 
-            /* â”€â”€ Splitter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Splitter ─────────────────────────────────────────────── */
             QSplitter::handle {{
                 background: {c["borde"]};
             }}
 
-            /* â”€â”€ DiÃ¡logos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── Diálogos ─────────────────────────────────────────────── */
             QDialog {{
                 background-color: {c["fondo_panel"]};
                 border: 1px solid {c["borde"]};
             }}
 
-            /* â”€â”€ ScrollArea â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+            /* ── ScrollArea ───────────────────────────────────────────── */
             QScrollArea {{
                 border: none;
                 background: transparent;

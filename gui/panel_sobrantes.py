@@ -225,7 +225,7 @@ class DialogoSobrantes(QDialog):
                 btn.setFixedHeight(28)
                 btn.setStyleSheet(
                     f"background-color: {COLORES['boton_peligro']};"
-                    f"color: #FFFFFF; border-radius:4px; font-weight:bold;"
+                    f"color: #FFFFFF; border-radius:2px; font-weight:bold;"
                     f"padding: 0px 10px;"
                 )
                 btn.clicked.connect(lambda _checked, sid=s.id: self._descartar(sid))

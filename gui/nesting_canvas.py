@@ -1,10 +1,10 @@
 """
 nesting_canvas.py — Widget matplotlib para visualizar placas nesteadas
+Estilo CAD: rectángulos nítidos, grid milimetrado, tipografía mono para dimensiones.
 """
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 import matplotlib
 matplotlib.use("QtAgg")
@@ -12,10 +12,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.patches as mpatches
 
-from gui.config import COLORES
+from gui.config import COLORES, FUENTES
 
 
-# Mapeo prefijo-nombre → color de relleno de pieza en canvas
 _COLORES_PIEZA: dict[str, str] = {
     "tapa":       COLORES["pieza_tapa"],
     "lateral":    COLORES["pieza_lateral"],
@@ -27,23 +26,21 @@ _COLORES_PIEZA: dict[str, str] = {
     "frente":     COLORES["pieza_frente"],
 }
 
+_GRID_STEP_TENUE  = 100   # mm
+_GRID_STEP_FUERTE = 500   # mm
+
 
 def _color_pieza(nombre: str) -> str:
-    prefijo = nombre.split("_")[0]
-    return _COLORES_PIEZA.get(prefijo, COLORES["pieza_default"])
+    return _COLORES_PIEZA.get(nombre.split("_")[0], COLORES["pieza_default"])
 
 
 def _hex_to_01(h: str) -> tuple[float, float, float]:
-    """Convierte hex '#RRGGBB' a tupla (r,g,b) 0-1 para matplotlib."""
     h = h.lstrip("#")
     return tuple(int(h[i:i+2], 16) / 255 for i in (0, 2, 4))  # type: ignore
 
 
 class NestingCanvas(QWidget):
-    """
-    Widget que embebe un canvas de matplotlib y dibuja una PlacaNesteada
-    con rectángulos coloreados por tipo de pieza y círculos para agujeros.
-    """
+    """Canvas matplotlib con estilo CAD (rectángulos + grid milimetrado)."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -65,22 +62,24 @@ class NestingCanvas(QWidget):
     # ── API pública ───────────────────────────────────────────────────────
 
     def draw_placa(self, placa) -> None:
-        """Dibuja la placa nesteada completa con piezas y agujeros."""
         self.ax.cla()
         self._style_axes()
 
         w, h = placa.ancho, placa.alto
+        mono = [FUENTES["familia_mono"], FUENTES["familia_mono_fallback"]]
 
-        # Fondo de la placa
+        self._draw_grid(w, h)
+
+        # Contorno de la placa (sin relleno, sólo borde amber)
         self.ax.add_patch(mpatches.Rectangle(
             (0, 0), w, h,
-            linewidth=2,
+            linewidth=1.5,
             edgecolor=_hex_to_01(COLORES["canvas_placa_borde"]),
             facecolor=_hex_to_01(COLORES["canvas_placa_fondo"]),
             zorder=1,
         ))
 
-        piezas_vistas: dict[str, str] = {}  # nombre → color (para leyenda)
+        piezas_vistas: dict[str, str] = {}
 
         for pieza, x, y, rotada in placa.piezas:
             pw = pieza.alto if rotada else pieza.ancho
@@ -89,17 +88,14 @@ class NestingCanvas(QWidget):
             color_rgb = _hex_to_01(color_hex)
             piezas_vistas[pieza.nombre.split("_")[0]] = color_hex
 
-            # Rectángulo de la pieza
-            self.ax.add_patch(mpatches.FancyBboxPatch(
+            self.ax.add_patch(mpatches.Rectangle(
                 (x, y), pw, ph,
-                boxstyle="round,pad=1",
-                linewidth=0.8,
-                edgecolor=(0, 0, 0, 0.6),
+                linewidth=0.9,
+                edgecolor=(0, 0, 0, 0.75),
                 facecolor=(*color_rgb, 0.88),
                 zorder=2,
             ))
 
-            # Etiqueta centrada
             label = pieza.nombre
             if len(label) > 12:
                 label = label[:11] + "…"
@@ -110,13 +106,12 @@ class NestingCanvas(QWidget):
                 label,
                 ha="center", va="center",
                 fontsize=6.5,
-                color=_hex_to_01(COLORES["texto_pieza"] if "texto_pieza" in COLORES else "#1E1E2E"),
+                color=_hex_to_01(COLORES.get("texto_pieza", "#0E0E0E")),
                 fontweight="bold",
                 zorder=3,
                 clip_on=True,
             )
 
-            # Agujeros
             for op in pieza.operaciones:
                 ox, oy = op.posicion
                 if rotada:
@@ -145,19 +140,18 @@ class NestingCanvas(QWidget):
                     zorder=4,
                 ))
 
-        # Leyenda compacta de tipos de pieza
-        legend_handles = [
-            mpatches.Patch(facecolor=_hex_to_01(c), label=nombre, edgecolor="black", linewidth=0.5)
-            for nombre, c in piezas_vistas.items()
-        ]
-        if legend_handles:
+        if piezas_vistas:
+            handles = [
+                mpatches.Patch(facecolor=_hex_to_01(c), label=nombre,
+                               edgecolor="black", linewidth=0.5)
+                for nombre, c in piezas_vistas.items()
+            ]
             leg = self.ax.legend(
-                handles=legend_handles,
+                handles=handles,
                 loc="upper right",
                 fontsize=7,
-                framealpha=0.4,
-                facecolor=COLORES["fondo_input"],
-                labelcolor=COLORES["texto_primario"],
+                framealpha=0.5,
+                facecolor=COLORES["canvas_placa_fondo"],
                 edgecolor=COLORES["borde"],
             )
             for text in leg.get_texts():
@@ -166,15 +160,18 @@ class NestingCanvas(QWidget):
         self.ax.set_xlim(-30, w + 30)
         self.ax.set_ylim(-30, h + 30)
         self.ax.set_aspect("equal", adjustable="box")
-        self.ax.set_xlabel("X (mm)", color=COLORES["texto_secundario"], fontsize=8)
-        self.ax.set_ylabel("Y (mm)", color=COLORES["texto_secundario"], fontsize=8)
+        self.ax.set_xlabel("X [mm]", color=COLORES["texto_secundario"],
+                           fontsize=8, fontfamily=mono)
+        self.ax.set_ylabel("Y [mm]", color=COLORES["texto_secundario"],
+                           fontsize=8, fontfamily=mono)
         self.ax.set_title(
-            f"Placa  {w:.0f} × {h:.0f} mm — {placa.num_piezas} piezas — "
+            f"PLACA  {w:.0f} × {h:.0f} mm   │   {placa.num_piezas} piezas   │   "
             f"{placa.eficiencia:.1f}% eficiencia",
             color=COLORES["texto_primario"],
-            fontsize=9,
-            pad=6,
+            fontsize=9, pad=6, fontfamily=mono,
         )
+        for tl in self.ax.get_xticklabels() + self.ax.get_yticklabels():
+            tl.set_fontfamily(mono)
         self.canvas.draw()
 
     def draw_empty(self, mensaje: str = "Sin datos de nesting") -> None:
@@ -182,12 +179,32 @@ class NestingCanvas(QWidget):
 
     # ── Internos ──────────────────────────────────────────────────────────
 
+    def _draw_grid(self, w: float, h: float) -> None:
+        """Grid técnico estilo CAD: líneas tenues cada 100mm, fuertes cada 500mm."""
+        tenue  = _hex_to_01(COLORES["canvas_grid_tenue"])
+        fuerte = _hex_to_01(COLORES["canvas_grid_fuerte"])
+
+        x = 0
+        while x <= w + 1:
+            col = fuerte if int(x) % _GRID_STEP_FUERTE == 0 else tenue
+            lw  = 0.5  if int(x) % _GRID_STEP_FUERTE == 0 else 0.3
+            self.ax.plot([x, x], [0, h], color=col, linewidth=lw, zorder=0)
+            x += _GRID_STEP_TENUE
+
+        y = 0
+        while y <= h + 1:
+            col = fuerte if int(y) % _GRID_STEP_FUERTE == 0 else tenue
+            lw  = 0.5  if int(y) % _GRID_STEP_FUERTE == 0 else 0.3
+            self.ax.plot([0, w], [y, y], color=col, linewidth=lw, zorder=0)
+            y += _GRID_STEP_TENUE
+
     def _style_axes(self) -> None:
         bg = _hex_to_01(COLORES["canvas_fondo"])
         self.ax.set_facecolor(bg)
         self.ax.tick_params(colors=COLORES["texto_secundario"], labelsize=7)
         for spine in self.ax.spines.values():
             spine.set_color(COLORES["borde"])
+            spine.set_linewidth(0.6)
 
     def _draw_empty(self, mensaje: str = "Sin datos de nesting") -> None:
         self.ax.cla()
@@ -197,6 +214,7 @@ class NestingCanvas(QWidget):
             transform=self.ax.transAxes,
             ha="center", va="center",
             fontsize=11,
+            fontfamily=[FUENTES["familia_mono"], FUENTES["familia_mono_fallback"]],
             color=COLORES["texto_desactivado"],
         )
         self.ax.set_xticks([])

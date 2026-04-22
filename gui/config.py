@@ -11,7 +11,7 @@ sin necesidad de tocar el código de los paneles.
 COPYRIGHT = "© 2026 Carpintería CNC 2.0 — Todos los derechos reservados"
 
 # ===========================================================================
-# PALETA DE COLORES  (tema claro minimalista — Light + Orange CNC)
+# PALETA DE COLORES  (tema CAD minimalista — Light + Amber)
 # Para cambiar el tema reemplazá los valores hex de esta sección.
 # ===========================================================================
 COLORES: dict[str, str] = {
@@ -25,7 +25,7 @@ COLORES: dict[str, str] = {
     "sidebar_fondo":         "#FFFFFF",
     "sidebar_boton":         "#F5F5F5",
     "sidebar_boton_hover":   "#EBEBEB",
-    "sidebar_boton_activo":  "#FF6B00",
+    "sidebar_boton_activo":  "#E8A317",
     "sidebar_texto":         "#444444",
     "sidebar_texto_activo":  "#FFFFFF",
 
@@ -35,26 +35,26 @@ COLORES: dict[str, str] = {
     "texto_desactivado":     "#BBBBBB",
 
     # Acentos
-    "acento_azul":           "#FF6B00",   # naranja CNC (token principal de la app)
+    "acento_azul":           "#E8A317",   # amber CAD (token principal de la app)
     "acento_verde":          "#16A34A",
     "acento_amarillo":       "#CA8A04",
     "acento_rojo":           "#DC2626",
     "acento_morado":         "#7C3AED",
-    "acento_naranja":        "#FF6B00",
+    "acento_naranja":        "#E8A317",
     "acento_cyan":           "#0891B2",
 
     # Botones
-    "boton_primario":        "#FF6B00",
-    "boton_primario_hover":  "#E55F00",
+    "boton_primario":        "#E8A317",
+    "boton_primario_hover":  "#C8890E",
     "boton_primario_texto":  "#FFFFFF",
     "boton_peligro":         "#DC2626",
     "boton_peligro_hover":   "#B91C1C",
     "boton_secundario":      "#EBEBEB",
     "boton_secundario_hover":"#DEDEDE",
     "boton_secundario_texto":"#333333",
-    "boton_outline_borde":   "#FF6B00",
-    "boton_outline_texto":   "#FF6B00",
-    "boton_outline_hover":   "#FFF0E6",
+    "boton_outline_borde":   "#E8A317",
+    "boton_outline_texto":   "#E8A317",
+    "boton_outline_hover":   "#FDF5E3",
 
     # Estados semánticos
     "exito":                 "#16A34A",
@@ -64,12 +64,12 @@ COLORES: dict[str, str] = {
 
     # Bordes
     "borde":                 "#E0E0E0",
-    "borde_activo":          "#FF6B00",
+    "borde_activo":          "#E8A317",
 
     # Stepper
     "paso_bloqueado":        "#E5E5E5",
     "paso_bloqueado_texto":  "#AAAAAA",
-    "paso_activo":           "#FF6B00",
+    "paso_activo":           "#E8A317",
     "paso_activo_texto":     "#FFFFFF",
     "paso_completado":       "#16A34A",
     "paso_completado_texto": "#FFFFFF",
@@ -77,12 +77,15 @@ COLORES: dict[str, str] = {
     "paso_linea_hecha":      "#16A34A",
 
     # ── Canvas de nesting ──────────────────────────────────────────────────
-    "canvas_fondo":          "#1A1A1A",
-    "canvas_placa_borde":    "#FF6B00",
-    "canvas_placa_fondo":    "#262626",
+    "canvas_fondo":          "#121212",
+    "canvas_placa_borde":    "#E8A317",
+    "canvas_placa_fondo":    "#1E1E1E",
+    "canvas_grid_tenue":     "#1F1F1F",
+    "canvas_grid_fuerte":    "#2E2E2E",
+    "texto_pieza":           "#0E0E0E",
 
     # Piezas por tipo (se usa el prefijo del nombre de la pieza)
-    "pieza_tapa":            "#FF6B00",
+    "pieza_tapa":            "#E8A317",
     "pieza_lateral":         "#22C55E",
     "pieza_espaldar":        "#A855F7",
     "pieza_estante":         "#06B6D4",
@@ -101,7 +104,7 @@ COLORES: dict[str, str] = {
     "tabla_header":          "#F0F0F0",
     "tabla_fila_par":        "#FFFFFF",
     "tabla_fila_impar":      "#F7F7F7",
-    "tabla_seleccion":       "#FFF0E6",
+    "tabla_seleccion":       "#FDF5E3",
 }
 
 # ===========================================================================

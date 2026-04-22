@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QFrame, QSizePolicy,
 )
 from PyQt6.QtCore import Qt
-from gui.config import COLORES, LABELS
+from gui.config import COLORES, LABELS, FUENTES
 
 
 class DialogoSobrante(QDialog):
@@ -95,22 +95,22 @@ class DialogoSobrante(QDialog):
 
         btn_usar = QPushButton(LABELS["dialogo_usar"])
         btn_usar.setStyleSheet(
-            f"background-color: {COLORES['acento_verde']}; color: #1E1E2E;"
-            f" font-weight: bold; border-radius: 6px; padding: 8px 20px;"
+            f"background-color: {COLORES['acento_verde']}; color: #FFFFFF;"
+            f" font-weight: bold; border-radius: 2px; padding: 8px 20px;"
         )
         btn_usar.clicked.connect(self._usar)
 
         btn_descartar = QPushButton(LABELS["dialogo_descartar"])
         btn_descartar.setStyleSheet(
-            f"background-color: {COLORES['boton_peligro']}; color: #1E1E2E;"
-            f" font-weight: bold; border-radius: 6px; padding: 8px 20px;"
+            f"background-color: {COLORES['boton_peligro']}; color: #FFFFFF;"
+            f" font-weight: bold; border-radius: 2px; padding: 8px 20px;"
         )
         btn_descartar.clicked.connect(self._descartar)
 
         btn_saltar = QPushButton(LABELS["dialogo_saltar"])
         btn_saltar.setStyleSheet(
             f"background-color: {COLORES['boton_secundario']}; color: {COLORES['texto_primario']};"
-            f" font-weight: bold; border-radius: 6px; padding: 8px 20px;"
+            f" font-weight: bold; border-radius: 2px; padding: 8px 20px;"
         )
         btn_saltar.clicked.connect(self._saltar)
 
@@ -126,8 +126,8 @@ class DialogoSobrante(QDialog):
             QDialog {{
                 background-color: {COLORES['fondo_panel']};
                 color: {COLORES['texto_primario']};
-                font-family: "Segoe UI";
-                font-size: 10pt;
+                font-family: "{FUENTES['familia']}", "{FUENTES['familia_fallback']}";
+                font-size: {FUENTES['size_normal']}pt;
             }}
             QLabel {{
                 background: transparent;

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot
 
-from gui.config import COLORES, LABELS
+from gui.config import COLORES, LABELS, FUENTES
 from gui.state import AppState
 from gui.nesting_canvas import NestingCanvas
 
@@ -266,9 +266,13 @@ class PanelNesting(QWidget):
         lbl_v = QLabel(valor)
         lbl_v.setStyleSheet(
             f"color: {color or COLORES['acento_naranja']}; font-size: 18pt; font-weight: bold;"
+            f" font-family: '{FUENTES['familia_mono']}', '{FUENTES['familia_mono_fallback']}';"
         )
         lbl_e = QLabel(etiqueta)
-        lbl_e.setStyleSheet(f"color: {COLORES['texto_secundario']}; font-size: 8pt;")
+        lbl_e.setStyleSheet(
+            f"color: {COLORES['texto_secundario']}; font-size: 8pt;"
+            f" letter-spacing: 1px;"
+        )
 
         vbox.addWidget(lbl_v)
         vbox.addWidget(lbl_e)
@@ -346,11 +350,17 @@ class PanelNesting(QWidget):
         if not self.state.tiene_mueble:
             return
 
-        # Usar piezas filtradas si se asignaron sobrantes manualmente
+        # Descontar por unidad las piezas ya asignadas a sobrantes
         asig = getattr(self.state, "asignaciones_sobrantes", [])
         if asig:
-            nombres_asig = {a["pieza_nombre"] for a in asig}
-            piezas = [p for p in self.state.piezas if p.nombre not in nombres_asig]
+            from collections import Counter
+            from dataclasses import replace
+            asignadas = Counter(a["pieza_nombre"] for a in asig)
+            piezas = []
+            for p in self.state.piezas:
+                restantes = max(0, p.cantidad - asignadas.get(p.nombre, 0))
+                if restantes > 0:
+                    piezas.append(replace(p, cantidad=restantes))
         else:
             piezas = list(self.state.piezas)
 

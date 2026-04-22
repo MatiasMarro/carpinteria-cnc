@@ -1,0 +1,276 @@
+# PROMPT MAESTRO: SISTEMA PARAMÉTRICO CARPINTERÍA CNC
+## Copia y pega esto en un nuevo chat con Claude para continuar el proyecto
+
+---
+
+## CONTEXTO DEL PROYECTO
+
+Soy Matías, carpintero de Córdoba, AR. Tengo un negocio de carpintería CNC (máquina con Mach3 y software Aspire V8.502).
+
+**Problema original**: Escalar de 3 a 12 muebles/mes. El bottleneck era diseño + nesting manual (73 min por mueble).
+
+**Solución implementada**: Sistema paramétrico en Python que genera muebles con nesting automático integrado. Todo en un DXF listo para Aspire.
+
+**Estado actual**: ✅ Sistema funcional (v1.0). Hemos validado que funciona en Aspire V8.502 real.
+
+---
+
+## REPOSITORIO Y ESTRUCTURA
+
+Repo GitHub: `carpinteria-cnc` (crear en https://github.com/new)
+
+Estructura local:
+```
+C:\Users\matia\OneDrive\Escritorio\Carpinteria2.0\
+├── cli.py                     # Comando principal
+├── src/
+│   ├── furniture_core.py      # Clases base (Material, Pieza, Operacion)
+│   ├── furniture_escritorio.py # Escritorio paramétrico (MI MUEBLE PRINCIPAL)
+│   ├── furniture_estanteria.py # Estantería parametrizada
+│   ├── nesting_engine.py      # Motor nesting (rectpack MaxRects)
+│   └── dxf_exporter.py        # Exportador DXF R2000 (V8-compatible)
+├── output/                    # DXFs generados aquí
+├── docs/
+│   ├── PROYECTO_BRIEF.md      # Este documento (decisiones + roadmap)
+│   └── GUIA_COMPLETA.md       # Guía de uso detallada
+├── requirements.txt           # ezdxf, rectpack
+└── README.md                  # Quick start
+```
+
+---
+
+## ESPECIFICACIONES TÉCNICAS CLAVE
+
+### Stack
+- **Lenguaje**: Python 3.13
+- **DXF**: ezdxf (formato R2000 AC1015, máxima compatibilidad Aspire V8)
+- **Nesting**: rectpack (MaxRects BSSF algorithm)
+- **Interfaz**: CLI (Typer/argparse)
+- **Almacenamiento**: Archivos (futuro: SQLite para sobrantes)
+
+### Muebles actuales (MVP)
+- Escritorio: 4 preconfigurados (compacto, estándar, ejecutivo, gaming) + customizable
+- Estantería: 3 preconfigurados + customizable
+
+### Configuración de usuario
+- **Placa MDF**: 1830x2750mm (configurable con `--placa-ancho`, `--placa-alto`)
+- **Margen de corte**: Por mecha (4, 5, 6, 8mm) con `--mecha N`
+- **Material**: MDF 18mm blanco (precio ajustable en furniture_core.py)
+
+### Output
+- **Un DXF por placa** con todas las piezas nesteadas
+- **Si requiere 2+ placas**: `placa_1_de_2.dxf`, `placa_2_de_2.dxf`, etc.
+- **Manifest.txt**: Info del proyecto e instrucciones para Aspire
+
+### Ejemplo real (escritorio estándar 120x60x75cm, 2 cajones)
+```
+$ python cli.py usar escritorio_estandar --mecha 6 --exportar
+
+Output:
+- 14 piezas generadas automáticamente
+- Costo: $81,599 ARS
+- Tiempo CNC: 6.23 horas
+- 1 placa (86.2% eficiencia)
+- DXF: placa_1_de_1.dxf (31KB, 60 LINE + 86 CIRCLE)
+- Status en Aspire V8.502: ✅ Abre perfectamente
+```
+
+---
+
+## DECISIONES ARQUITECTÓNICAS (NO CAMBIAR SIN DEBATIR)
+
+1. **Nesting integrado** - Un DXF por placa (vs múltiples DXFs sin nesting). Ahorró 30-40min nesting manual.
+
+2. **DXF R2000** - Para Aspire V8.502 (probado). R2018 no abre ("Ningun dato ha sido importado").
+
+3. **Margen configurable** - `--mecha N` porque depende de herramienta: 4mm, 5mm, 6mm, 8mm.
+
+4. **Placa estándar 1830x2750** - Las de Matías. Configurable si cambian.
+
+5. **Modelo paramétrico** - Escritorio es `class Escritorio(Protocol)` reutilizable. Fácil agregar "Mesita", "Cajonera", etc.
+
+6. **Dos DXFs para 2+ placas** - `placa_1_de_2.dxf` + `placa_2_de_2.dxf` para claridad.
+
+---
+
+## CÓMO USAR LA CLI
+
+### Sintaxis general
+```
+python cli.py COMANDO [opciones]
+```
+
+### Comandos
+```
+python cli.py listar
+    → Muestra muebles preconfigurados disponibles
+
+python cli.py usar escritorio_estandar --mecha 6 --exportar
+    → Genera escritorio estándar, mecha 6mm, exporta DXF
+
+python cli.py escritorio --ancho 1400 --profundidad 700 --mecha 6 --exportar
+    → Personalizado: ancho 1400mm, profundidad 700mm
+
+python cli.py estanteria --ancho 1000 --alto 2000 --estantes 6 --mecha 4 --exportar
+    → Estantería: 1000x2000mm, 6 estantes, mecha 4mm
+```
+
+### Parámetros nesting
+- `--mecha N` → Margen en mm (default 4)
+- `--placa-ancho N` → Ancho placa en mm (default 1830)
+- `--placa-alto N` → Alto placa en mm (default 2750)
+- `--exportar` → Generar DXF (sin esto solo muestra info)
+
+---
+
+## WORKFLOW PARA ASPIRE
+
+1. Ejecuta CLI: `python cli.py usar escritorio_estandar --mecha 6 --exportar`
+2. Archivo generado: `output/P_YYYYMMDD_HHMMSS_escritorio_estandar/placa_1_de_1.dxf`
+3. **Aspire**: File → Open Vector File → selecciona `placa_1_de_1.dxf`
+4. **Layers ya preconfigurados**:
+   - CONTORNO (rojo) → contorno exterior
+   - MINIFIX_15 (amarillo) → agujeros 15mm (minifix)
+   - TARUGO_8 (verde) → agujeros 8mm (tarugos)
+   - MECHA_4 (cian) → agujeros 4mm
+5. Aspire → genera toolpaths por layer → exporta G-code → Mach3
+
+---
+
+## ROADMAP A FUTURO
+
+### FASE 2 (1-2 semanas)
+- [ ] Nesting v2: algoritmos avanzados
+- [ ] DB sobrantes: SQLite para reutilizar material
+- [ ] Histórico tiempos: calibración con data real
+- [ ] Dashboard Streamlit
+
+### FASE 3 (1-2 meses)
+- [ ] Más muebles: mesita, cajonera, placard
+- [ ] Integración Fusion 360
+- [ ] Reportes PDF
+
+### FASE 4 (3-6 meses)
+- [ ] IoT en CNC (Raspberry Pi)
+- [ ] ML predicción tiempos
+- [ ] Dashboard kanban
+
+---
+
+## OBJETIVOS INMEDIATOS (PRÓXIMAS SESIONES)
+
+**Prioridad 1**: Validar con datos reales
+- [ ] Cortar 3-5 muebles con el sistema
+- [ ] Registrar tiempos reales vs estimados
+- [ ] Reportar gaps al calibrador
+
+**Prioridad 2**: Base de sobrantes
+- [ ] SQLite schema para registrar placas parciales
+- [ ] Consulta automática en nesting (si hay sobrante que encaje, usarlo)
+
+**Prioridad 3**: Dashboard
+- [ ] Streamlit UI para input visual
+- [ ] Selector de mueble + sliders parámetros
+- [ ] Preview 2D de nesting antes de exportar
+
+---
+
+## PUNTOS DE REFERENCIA TÉCNICOS
+
+### Clase Pieza
+```python
+pieza = Pieza(
+    nombre="tapa",
+    ancho=1200,
+    alto=600,
+    material=MATERIALES["MDF_18"],
+    cantidad=1,
+    permitir_rotacion=True
+)
+```
+
+### Función nesting
+```python
+resultado = nesting_automatico(
+    piezas=piezas,           # lista de Pieza
+    placa_ancho=1830,
+    placa_alto=2750,
+    margen_corte=6,          # mm
+    permitir_rotacion=True
+)
+# Retorna: ResultadoNesting con .placas [PlacaNesteada, ...]
+```
+
+### Exportar DXF
+```python
+from dxf_exporter import exportar_placa
+exportar_placa(
+    piezas_con_posicion=resultado.placas[0].piezas,  # [(pieza, x, y, rotada), ...]
+    path="output/placa_1.dxf",
+    placa_ancho=1830,
+    placa_alto=2750
+)
+```
+
+---
+
+## COMANDOS GIT (Si haces cambios)
+
+```bash
+cd C:\Users\matia\OneDrive\Escritorio\Carpinteria2.0
+
+git add .
+git commit -m "Descripción del cambio"
+git push origin main
+```
+
+---
+
+## CUÁNDO CONTACTARME (CLAUDE)
+
+### ✅ Puedo ayudarte con
+- Agregar nuevos tipos de muebles
+- Optimizar nesting (new algorithms)
+- Bugs en DXF o CLI
+- Integrations (Fusion, Aspire API)
+- Code review y refactoring
+- Base de datos / SQLite
+- Dashboards (Streamlit, React)
+- Performance optimization
+
+### ⚠️ Cosas que necesito feedback real
+- Tiempos CNC reales (comparar vs estimado)
+- Qué falta en CLI / usabilidad
+- Problemas en Aspire (versiones viejas)
+- Nuevas necesidades de negocio
+
+---
+
+## NOTAS IMPORTANTES
+
+1. **Archivo de precios**: Ajusta `MATERIALES` en `furniture_core.py` si cambian precios
+2. **Tamaño placa**: Por defecto 1830x2750, pero configurable
+3. **Rotación**: MDF blanco puede rotar. Si cambias a melamina con veta, cambiar `permitir_rotacion=False`
+4. **Historial**: Los DXF se guardan con timestamp, nunca se sobrescriben
+5. **Testing**: Siempre prueba en Aspire V8.502 antes de producción
+
+---
+
+## CÓMO CONTACTAR A CLAUDE PARA CONTINUAR
+
+**Copia y pega este prompt en un nuevo chat, luego escribe**:
+
+> "Necesito [describir qué quiero]: [detalles específicos]"
+
+Ejemplos:
+- "Necesito agregar un nuevo mueble: Mesita de noche (40x40x50cm, sin cajones)"
+- "El nesting no está optimizado al máximo, quiero Simulated Annealing"
+- "Quiero una base de datos de sobrantes para reutilizar material"
+- "Cómo integro esto con Fusion 360"
+- "Quiero un dashboard web local"
+
+---
+
+**Proyecto creado**: 21 de abril 2026
+**Versión actual**: 1.0 (nesting integrado, Aspire V8-compatible)
+**Status**: ✅ PRODUCCIÓN

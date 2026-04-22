@@ -1,0 +1,51 @@
+{
+  "name": "Carpintería 2.0 - Sistema Paramétrico CNC",
+  "description": "Sistema que genera muebles paramétricos con nesting automático para CNC",
+  "version": "1.0",
+  
+  "context": {
+    "autoLoad": [
+      ".claude/INSTRUCTIONS.md",
+      ".claude/PROJECT.md",
+      ".claude/ARCHITECTURE.md",
+      ".claude/ROADMAP.md"
+    ],
+    "readFirst": ".claude/INSTRUCTIONS.md",
+    "description": "Estos archivos se cargan automáticamente. Lee INSTRUCTIONS primero."
+  },
+  
+  "project": {
+    "owner": "Matías",
+    "location": "Córdoba, Argentina",
+    "purpose": "Escalar carpintería CNC de 3 a 12 muebles/mes",
+    "currentPhase": "1 - Validación en producción"
+  },
+  
+  "technology": {
+    "language": "Python 3.13",
+    "framework": "CLI (argparse)",
+    "keyLibraries": ["ezdxf (DXF R2000)", "rectpack (nesting)", "dataclasses"],
+    "vcs": "git"
+  },
+  
+  "rules": {
+    "dxfFormat": "R2000 (AC1015) - Aspire V8.502 compatible",
+    "architecture": "Modular - no breaking changes sin consultar",
+    "testing": "Siempre ejecuta código después de escribir",
+    "commits": "Automáticos después de cada feature",
+    "breakingChanges": "Avisa antes, consulta PROYECTO_BRIEF.md"
+  },
+  
+  "shortcuts": {
+    "runCLI": "python cli.py listar",
+    "generateExample": "python cli.py usar escritorio_estandar --mecha 6 --exportar",
+    "installDeps": "pip install -r requirements.txt"
+  },
+  
+  "nextSteps": [
+    "1. Lee .claude/INSTRUCTIONS.md",
+    "2. Lee .claude/PROJECT.md para contexto",
+    "3. Lee .claude/ROADMAP.md para qué hacer",
+    "4. Propón feature o fix basado en ROADMAP"
+  ]
+}

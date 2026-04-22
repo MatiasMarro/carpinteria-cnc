@@ -31,6 +31,7 @@ from furniture_estanteria import (
 )
 from dxf_exporter import exportar_placa, exportar_pieza_simple
 from nesting_engine import nesting_automatico, resumen_nesting
+from sobrantes_registrar import registrar_sobrantes_de_resultado, sugerir_uso_sobrantes
 
 
 MUEBLES_PRECONFIGURADOS = {
@@ -72,10 +73,23 @@ def procesar_mueble_con_nesting(mueble, nombre_proyecto: str, args):
         for warning in resumen['validaciones']:
             print(f"  ! {warning}")
     
-    # 2. Nesting
+    # 2. Sugerir uso de sobrantes existentes (interactivo)
+    proyecto_id = generar_id_proyecto()
+    orden_label = f"{proyecto_id}_{nombre_proyecto}"
+    asignaciones_sobrantes = []
+    if not getattr(args, "no_sugerir_sobrantes", False):
+        piezas, asignaciones_sobrantes = sugerir_uso_sobrantes(
+            piezas=piezas,
+            margen_corte=args.mecha,
+            orden_label=orden_label,
+        )
+        if asignaciones_sobrantes:
+            print(f"\n  --> {len(asignaciones_sobrantes)} pieza(s) asignada(s) a sobrantes existentes.")
+
+    # 3. Nesting con piezas restantes
     print(f"\nNESTING (mecha {args.mecha}mm, placa {args.placa_ancho}x{args.placa_alto}mm):")
     print("-" * 80)
-    
+
     resultado = nesting_automatico(
         piezas=piezas,
         placa_ancho=args.placa_ancho,
@@ -87,10 +101,9 @@ def procesar_mueble_con_nesting(mueble, nombre_proyecto: str, args):
     
     print(resumen_nesting(resultado))
     
-    # 3. Exportar DXF por placa
+    # 4. Exportar DXF por placa
     if args.exportar:
-        proyecto_id = generar_id_proyecto()
-        output_dir = Path(__file__).parent / "output" / f"{proyecto_id}_{nombre_proyecto}"
+        output_dir = Path(__file__).parent / "output" / orden_label
         output_dir.mkdir(parents=True, exist_ok=True)
         
         print(f"\nEXPORTANDO:")
@@ -133,8 +146,23 @@ def procesar_mueble_con_nesting(mueble, nombre_proyecto: str, args):
             f.write("5. Exporta G-code\n")
             f.write("6. Carga en Mach3 y ejecuta\n")
         
+        # Apéndice del manifest con piezas cortadas de sobrantes
+        if asignaciones_sobrantes:
+            with open(manifest, "a", encoding="utf-8") as f:
+                f.write("\nPIEZAS DE SOBRANTES (cortar manualmente):\n")
+                for a in asignaciones_sobrantes:
+                    f.write(f"  - {a['pieza_nombre']} ({a['pieza_ancho']:.0f}x{a['pieza_alto']:.0f}mm) "
+                            f"-> sobrante #{a['sobrante_id']} en ({a['pos_x']:.0f},{a['pos_y']:.0f})"
+                            f"{' rotada' if a['rotada'] else ''}\n")
+
         print(f"\nProyecto exportado en: {output_dir}")
         print(f"Manifest guardado: manifest.txt")
+
+        # 5. Auto-registrar sobrantes nuevos en DB
+        if not getattr(args, "no_registrar_sobrantes", False):
+            ids = registrar_sobrantes_de_resultado(resultado, orden_label)
+            if ids:
+                print(f"\nSOBRANTES registrados en DB: {len(ids)} (IDs {ids[0]}-{ids[-1]})")
 
 
 def cmd_listar():
@@ -213,6 +241,10 @@ def agregar_args_nesting(parser):
                        help="Alto de placa en mm. Default: 2750")
     parser.add_argument("--exportar", action="store_true",
                        help="Exportar DXF por placa")
+    parser.add_argument("--no-registrar-sobrantes", action="store_true",
+                       help="No auto-registrar sobrantes en DB (útil para pruebas)")
+    parser.add_argument("--no-sugerir-sobrantes", action="store_true",
+                       help="No preguntar por uso de sobrantes existentes")
 
 
 def main():
